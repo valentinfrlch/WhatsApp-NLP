@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.figure_factory as ff
 from nltk.tokenize import word_tokenize
 from nltk.probability import FreqDist
+from collections import Counter
 
 import matplotlib.pyplot as plt
 
@@ -18,6 +19,7 @@ def extract(path):
     for file in filtered_files:
         with zipfile.ZipFile(os.path.join(path, file)   , 'r') as zip_ref:
             zip_ref.extractall("dataset/tmp")
+            os.rename(os.path.join(path, file), os.path.join(path, file+"q"))
 
 
 def get_handles(lines):
@@ -44,7 +46,7 @@ def parse_message(line):
     try:
         message = re.sub('<[^>]+>', '', messageSplit[3].strip()).replace("<attached", "").strip()
     except IndexError:
-        print(messageSplit)
+        well = 1
     return message
 
 def get_text_by_handle(lines, handle):
@@ -86,7 +88,7 @@ def relative_count(lines):
 
 
 def linguistics(text):
-    stop_words = [" ", ".", ",", "  "]
+    stop_words = [" ", ".", ",", "..", "\u200e"]
     tokenized_word=word_tokenize(text)
     dataset=[]
     for w in tokenized_word:
@@ -94,15 +96,56 @@ def linguistics(text):
             dataset.append(w)
 
     fdist = FreqDist(dataset)
-    fdist.plot(30,cumulative=False)
-    plt.show()
 
-    return fdist.most_common(10)
+    return fdist.most_common(100)
+
+def linguistic_similarity(lines, handle1, handle2):
+    text1 = get_text_by_handle(lines, handle1)
+    text2 = get_text_by_handle(lines, handle2)
+    dataset1 = linguistics(text1)
+    dataset2 = linguistics(text2)
+    set1, set2 = [], []
+    for data in dataset1:
+        set1.append(data[0])
+    for data in dataset2:
+        set2.append(data[0])
+    
+    a_vals = Counter(set1)
+    b_vals = Counter(set2)
+
+    words  = list(a_vals.keys() | b_vals.keys())
+    a_vect = [a_vals.get(word, 0) for word in words]
+    b_vect = [b_vals.get(word, 0) for word in words] 
+
+    len_a  = sum(av*av for av in a_vect) ** 0.5
+    len_b  = sum(bv*bv for bv in b_vect) ** 0.5
+    dot    = sum(av*bv for av,bv in zip(a_vect, b_vect))
+    cosine = dot / (len_a * len_b)
+    return cosine 
+
+
+def analyze():
+    files_in_directory = os.listdir(path)
+    filtered_files = [file for file in files_in_directory if file.endswith(".zip")]
+    for file in filtered_files:
+        print(file)
+        extract(path)
+        chat_file = open("/home/pi/scripts/WhatsApp Analysis/dataset/tmp/_chat.txt", "a")
+        lines = chat_file.readlines()
+        handles = get_handles(lines)
+        stats = open("stats.txt", "a")
+        stats.write("[" + handles[0], handles[1] + "]\n")
+        stats.write("linguistic_similarity: " + linguistic_similarity(lines, handles[0], handles[1]) + "\n")
+        stats.write("relative_count: " + relative_count(lines) + "\n")
+        stats.write("absolute_count: " + absolute_count(lines) + "\n")
+        stats.close()
+        for f in os.listdir("dataset/tmp/"): # clean up
+            os.remove(f)
+    print("done")
+
 
 #print(get_handles(lines))
-#extract(path)
-chat_file = open("dataset/tmp/_chat.txt", "r")
-lines = chat_file.readlines()
-#linguistics(get_text_by_handle(lines, "name"))
-
-print(relative_count(lines))
+analyze()
+# chat_file = open("dataset/tmp/_chat.txt", "a")
+# lines = chat_file.readlines()
+# handles = get_handles(lines)
