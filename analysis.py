@@ -7,26 +7,26 @@ import plotly.figure_factory as ff
 from nltk.tokenize import word_tokenize
 from nltk.probability import FreqDist
 from collections import Counter
-
+import json
 import matplotlib.pyplot as plt
 
 
 path = "dataset"
 
 def extract(path):
-    files_in_directory = os.listdir(path)
-    filtered_files = [file for file in files_in_directory if file.endswith(".zip")]
-    for file in filtered_files:
-        with zipfile.ZipFile(os.path.join(path, file)   , 'r') as zip_ref:
-            zip_ref.extractall("dataset/tmp")
-            os.rename(os.path.join(path, file), os.path.join(path, file+"q"))
+    with zipfile.ZipFile(path, "r") as zip_ref:
+        zip_ref.extractall("dataset/tmp/")
+    os.rename(path, path + "q")
 
 
 def get_handles(lines):
     handles = []
     for names in lines:
         if len(handles) < 2:
-            handle = names.split("]")[1].split(":")[0].strip()
+            try:
+                handle = names.split("]")[1].split(":")[0].strip()
+            except IndexError:
+                continue
             if handle not in handles:
                 handles.append(handle)
         else:
@@ -109,7 +109,7 @@ def linguistic_similarity(lines, handle1, handle2):
         set1.append(data[0])
     for data in dataset2:
         set2.append(data[0])
-    
+     
     a_vals = Counter(set1)
     b_vals = Counter(set2)
 
@@ -127,25 +127,33 @@ def linguistic_similarity(lines, handle1, handle2):
 def analyze():
     files_in_directory = os.listdir(path)
     filtered_files = [file for file in files_in_directory if file.endswith(".zip")]
+
+    check_stats = open("dataset/stats.txt", "r")
+    existing_stats_lines = check_stats.readlines()
+    existing_handles = []
+    for l in existing_stats_lines:
+        if "[" in l:
+            h = l.strip().split(",")[0].replace("[", "")
+            existing_handles.append(h)
+
     for file in filtered_files:
-        print(file)
-        extract(path)
-        chat_file = open("/home/pi/scripts/WhatsApp Analysis/dataset/tmp/_chat.txt", "a")
+        print("[INFO] Analyzing " + file)
+        extract(os.path.join("/home/pi/scripts/WhatsApp Analysis/dataset/", file))
+        chat_file = open("/home/pi/scripts/WhatsApp Analysis/dataset/tmp/_chat.txt", "r")
         lines = chat_file.readlines()
         handles = get_handles(lines)
-        stats = open("stats.txt", "a")
-        stats.write("[" + handles[0], handles[1] + "]\n")
-        stats.write("linguistic_similarity: " + linguistic_similarity(lines, handles[0], handles[1]) + "\n")
-        stats.write("relative_count: " + relative_count(lines) + "\n")
-        stats.write("absolute_count: " + absolute_count(lines) + "\n")
-        stats.close()
-        for f in os.listdir("dataset/tmp/"): # clean up
-            os.remove(f)
-    print("done")
+        stats = open("dataset/stats.txt", "a")
 
+        if handles[0] not in existing_handles:
+            stats.write("[" + handles[0] + ", " + handles[1] + "]\n")
+            stats.write("linguistic_similarity: " + str(linguistic_similarity(lines, handles[0], handles[1])) + "\n")
+            stats.write("relative_count: " + str(relative_count(lines)) + "\n")
+            stats.write("absolute_count: " + str(absolute_count(lines)) + "\n")
+            stats.close()
 
-#print(get_handles(lines))
+        # clean up
+        for f in os.listdir("dataset/tmp/"):
+            file_path = os.path.join("dataset/tmp", f)
+            os.remove(file_path)
+
 analyze()
-# chat_file = open("dataset/tmp/_chat.txt", "a")
-# lines = chat_file.readlines()
-# handles = get_handles(lines)
