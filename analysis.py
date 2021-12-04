@@ -96,8 +96,8 @@ def linguistics(text):
             dataset.append(w)
 
     fdist = FreqDist(dataset)
-
-    return fdist.most_common(100)
+    calculated_length = round(len(list(dict.fromkeys(dataset)))*0.25) # top 25%
+    return fdist.most_common(calculated_length)
 
 def linguistic_similarity(lines, handle1, handle2):
     text1 = get_text_by_handle(lines, handle1)
