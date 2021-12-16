@@ -124,6 +124,18 @@ def linguistic_similarity(lines, handle1, handle2):
     return cosine 
 
 
+def extract_key_words(text):
+    sentences = nltk.sent_tokenize(text)
+    sentences = [nltk.word_tokenize(sent) for sent in sentences]
+    sentences = [nltk.pos_tag(sent) for sent in sentences]
+
+    grammar = "NP: {<DT>?<JJ>*<NN>}"
+    parser = nltk.RegexpParser(grammar)
+    for sentence in sentences:
+        result = parser.parse(sentence)
+        print(result)
+
+
 def analyze():
     files_in_directory = os.listdir(path)
     filtered_files = [file for file in files_in_directory if file.endswith(".zip")]
@@ -156,4 +168,6 @@ def analyze():
             file_path = os.path.join("dataset/tmp", f)
             os.remove(file_path)
 
-analyze()
+#analyze()
+
+extract_key_words("De weg isch lang.")
